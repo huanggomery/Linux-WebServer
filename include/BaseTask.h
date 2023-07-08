@@ -7,6 +7,18 @@
 #include "noncopyable.h"
 // #define TaskType std::remove_reference<decltype(*this)>::type;
 
+/*
+    任务类编写说明：
+    首先一定要继承基类BaseTask
+    一个任务类对象的智能指针存在于定时器和Epoll的fd2task中。
+
+    Epoll处理时不会改动定时器和fd2task中的任务指针
+        所以如果任务处理时希望更新该任务的定时器，需要与定时器双向解耦，然后重新添加
+        如果希望与客户端断开连接，需要和定时器双向解耦并手动调用epoll_del，对象才能被析构
+
+    任务类中应该包含的变量和函数参照BaseTask类中的说明
+*/
+
 
 class BaseTask
 {
@@ -21,7 +33,7 @@ public:
         在其派生类中应该定义以下成员函数：
         TaskType(int sock);   构造函数
         void linkTimer(SP_Timer timer);
-        void separateTimer();   // 与定时器单向解耦，即定时器删除时会连带删除任务
+        void separateTimer();   // 与定时器单向解耦，即定时器删除时会连带删除任务，任务类中通常不调用这个函数
         void bilateralSeparateTimer(); // 与定时器双向解耦，即定时器删除时不会删除任务
         static void Init(SP_TimerManager, SP_Epoll);
     */
