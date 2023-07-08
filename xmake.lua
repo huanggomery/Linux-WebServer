@@ -1,8 +1,12 @@
 add_rules("mode.debug", "mode.release")
 
-target("myWebServer")
+target("EchoServer")
     set_kind("binary")
     add_files("src/*.cpp")
+    -- add_files("test.cpp")
+    add_includedirs("include")
+    set_languages("c++11")
+    add_syslinks("pthread")
 
 --
 -- If you want to known more usage about xmake, please see https://xmake.io
