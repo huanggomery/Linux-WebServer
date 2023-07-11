@@ -1,10 +1,10 @@
 #include <iostream>
 #include <getopt.h>
-#include "Task.h"
 #include "WebServer.h"
+#include "HttpTask.h"
 
 const int THREAD_NUM = 15;
-const int PORT = 9190;
+const int PORT = 80;
 
 int main(int argc, char** argv)
 {
@@ -27,7 +27,7 @@ int main(int argc, char** argv)
         }
     }
 
-    auto server = WebServer<Echo>::CreateWebServer(port, 10*1000, thread_num, 10000);  // 端口号、初始超时时间、线程数、工作队列长度
+    auto server = WebServer<HttpTask>::CreateWebServer(port, 0.5*1000, thread_num, 10000);  // 端口号、初始超时时间、线程数、工作队列长度
     if (server)
         server->work();
     
