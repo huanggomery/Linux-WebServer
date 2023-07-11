@@ -1,4 +1,5 @@
 #include "Utils.h"
+#include "Logging.h"
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <arpa/inet.h>
@@ -29,6 +30,7 @@ int Create_And_Listen(int port)
 
     if (bind(listenfd, (sockaddr *)&address, sizeof(address)) == -1)
     {
+        LOG_DEBUG << "Tring to bind port " << port << " failed";
         close(listenfd);
         return -1;
     }
@@ -79,7 +81,7 @@ bool addsig(int sig, void (*handler)(int))
     return true;
 }
 
-// 返回当前时间的字符串
+// 返回当前时间的字符串,格式类似于： 20230706 21:05:57.229383
 std::string get_time_str()
 {
     char str_t[25] = {0};
@@ -94,6 +96,17 @@ std::string get_time_str()
     strcat(str_t, usec);
 
     return std::string(str_t);
+}
+
+// 返回当前GMT时间字符串，格式类似于： Tue, 11 Jul 2023 07:22:04 GMT
+std::string get_gmt_time_str()
+{
+    time_t currentTime = time(NULL);
+    struct tm *gmTime = gmtime(&currentTime);
+    char timeString[50];
+
+    strftime(timeString, sizeof(timeString), "%a, %d %b %Y %H:%M:%S GMT", gmTime);
+    return std::string(timeString);
 }
 
 // 生成日志文件名
@@ -111,4 +124,10 @@ std::string get_logfile_name()
     strcat(ret, ".log");
 
     return std::string(ret);
+}
+
+// 根据sockaddr_in，返回IP地址的点分十进制字符串
+std::string dotted_decimal_notation(const sockaddr_in &addr)
+{
+    return std::string(inet_ntoa(addr.sin_addr));
 }

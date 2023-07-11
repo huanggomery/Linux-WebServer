@@ -2,6 +2,8 @@
 #ifndef _UTILS_H
 #define _UTILS_H
 #include <string>
+#include <sys/socket.h>
+#include <arpa/inet.h>
 
 #define TESTOUT std::cout << "this is just a test" << std::endl;
 
@@ -20,7 +22,13 @@ bool addsig(int sig, void (*handler)(int) = sig_hander);
 // 返回当前时间的字符串,格式类似于： 20230706 21:05:57.229383
 std::string get_time_str();
 
+// 返回当前GMT时间字符串，格式类似于： Tue, 11 Jul 2023 07:22:04 GMT
+std::string get_gmt_time_str();
+
 // 生成日志文件名
 std::string get_logfile_name();
+
+// 根据sockaddr_in，返回IP地址的点分十进制字符串
+std::string dotted_decimal_notation(const sockaddr_in &addr);
 
 #endif
