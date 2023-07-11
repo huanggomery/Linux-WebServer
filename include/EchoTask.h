@@ -8,7 +8,7 @@ using std::shared_ptr;
 
 const int BUF_SIZE = 2048;
 const int TIMEOUT = 10*1000;   // 超时时间为10s
-enum TASK_TATUS {
+enum TASK_STATUS {
     READY_TO_READ = 1,
     READY_TO_WRITE,
     SOMETHING_ERROR
