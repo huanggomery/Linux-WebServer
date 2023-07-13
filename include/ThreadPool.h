@@ -7,6 +7,7 @@
 #include <memory>
 #include <iostream>
 #include "Sync.h"
+#include "Logging.h"
 using std::vector;
 using std::list;
 using std::shared_ptr;
@@ -132,7 +133,6 @@ void *ThreadPool<T>::run(void *arg)
 
     --sp->started_;
     sp->locker_.unlock();
-    // std::cout << "thread exit" << std::endl;
     return NULL;
 }
 
