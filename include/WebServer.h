@@ -4,6 +4,7 @@
 #include "Logging.h"
 #include <memory>
 #include <exception>
+#include <signal.h>
 using std::shared_ptr;
 using std::weak_ptr;
 
@@ -69,6 +70,14 @@ shared_ptr<WebServer<T>> WebServer<T>::CreateWebServer(int port, int timeout, in
         LOG_FATAL << "runtime error: " << e.what();
         return nullptr;
     }
+
+    // 屏蔽SIGPIPE信号
+    struct sigaction sa;
+    memset(&sa, '\0', sizeof(sa));
+    sa.sa_handler = SIG_IGN;    //设置信号的处理回调函数 这个SIG_IGN宏代表的操作就是忽略该信号 
+    sa.sa_flags = 0;
+    sigaction(SIGPIPE, &sa, NULL);
+
     LOG_INFO << "Server started";
     return self_.lock();
 }
