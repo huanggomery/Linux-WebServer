@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <sys/epoll.h>
+#include <netinet/tcp.h>
 
 
 // 创建服务器套接字,如果失败，返回-1
@@ -27,6 +28,11 @@ int Create_And_Listen(int port)
     // 使用的时候注释掉
     int reuse = 1;
     setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+
+    // 禁用Nagle算法
+    int flag = 1;
+    setsockopt(listenfd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(int));
+        
 
     if (bind(listenfd, (sockaddr *)&address, sizeof(address)) == -1)
     {
@@ -112,7 +118,7 @@ std::string get_gmt_time_str()
 // 生成日志文件名
 std::string get_logfile_name()
 {
-    char ret[27] = "WebServer";
+    char ret[28] = "WebServer";
     char str_t[25] = {0};
     struct timeval tv;
     gettimeofday(&tv, NULL);
@@ -130,4 +136,10 @@ std::string get_logfile_name()
 std::string dotted_decimal_notation(const sockaddr_in &addr)
 {
     return std::string(inet_ntoa(addr.sin_addr));
+}
+
+// 根据sockaddr_in，返回源端口号
+int src_port(const sockaddr_in &addr)
+{
+    return ntohs(addr.sin_port);
 }

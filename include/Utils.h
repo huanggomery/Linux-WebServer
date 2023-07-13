@@ -31,4 +31,7 @@ std::string get_logfile_name();
 // 根据sockaddr_in，返回IP地址的点分十进制字符串
 std::string dotted_decimal_notation(const sockaddr_in &addr);
 
+// 根据sockaddr_in，返回源端口号
+int src_port(const sockaddr_in &addr);
+
 #endif
