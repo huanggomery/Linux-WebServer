@@ -3,7 +3,7 @@
 #include "WebServer.h"
 #include "HttpTask.h"
 
-const int THREAD_NUM = 15;
+const int THREAD_NUM = 4;
 const int PORT = 80;
 
 int main(int argc, char** argv)
