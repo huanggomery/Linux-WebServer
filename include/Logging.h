@@ -18,14 +18,15 @@ public:
         FATAL,
         NUM_LOG_LEVELS,
     };
-    Logger(const std::string basename, int line, LogLevel level = INFO);
+    Logger(const std::string &basename, int line, LogLevel level = INFO);
     ~Logger();
     LogStream &stream() {return impl_.stream_;}
+    static LogLevel level() {return g_level_;}
 
 private:
     struct Impl
     {
-        Impl(const std::string basename, int line, LogLevel level);
+        Impl(const std::string &basename, int line, LogLevel level);
         ~Impl();
 
         LogStream stream_;
@@ -34,14 +35,21 @@ private:
         LogLevel level_;
     };
 
+    static LogLevel g_level_;
     Impl impl_;
 };
 
-#define LOG_TRACE Logger(__FILE__, __LINE__, Logger::TRACE).stream()
-#define LOG_DEBUG Logger(__FILE__, __LINE__, Logger::DEBUG).stream()
-#define LOG_INFO Logger(__FILE__, __LINE__).stream()
-#define LOG_WARN Logger(__FILE__, __LINE__, Logger::WARN).stream()
-#define LOG_ERROR Logger(__FILE__, __LINE__, Logger::ERROR).stream()
-#define LOG_FATAL Logger(__FILE__, __LINE__, Logger::FATAL).stream()
+#define LOG_TRACE if (Logger::level() <= Logger::TRACE) \
+    Logger(__FILE__, __LINE__, Logger::TRACE).stream()
+#define LOG_DEBUG if (Logger::level() <= Logger::DEBUG) \
+    Logger(__FILE__, __LINE__, Logger::DEBUG).stream()
+#define LOG_INFO if (Logger::level() <= Logger::INFO) \
+    Logger(__FILE__, __LINE__).stream()
+#define LOG_WARN if (Logger::level() <= Logger::WARN) \
+    Logger(__FILE__, __LINE__, Logger::WARN).stream()
+#define LOG_ERROR if (Logger::level() <= Logger::ERROR) \
+    Logger(__FILE__, __LINE__, Logger::ERROR).stream()
+#define LOG_FATAL if (Logger::level() <= Logger::FATAL) \
+    Logger(__FILE__, __LINE__, Logger::FATAL).stream()
 
 #endif

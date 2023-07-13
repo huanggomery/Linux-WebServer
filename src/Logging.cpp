@@ -5,6 +5,9 @@
 #include <string>
 #include <memory>
 
+// 全局的日志级别
+Logger::LogLevel Logger::g_level_(INFO);
+
 std::string LevelStr[] = {
     "TRACE",
     "DEBUG",
@@ -33,7 +36,7 @@ void output(const char *logline, int len)
     AsyncLogger_->append(logline, len);
 }
 
-Logger::Logger(const std::string basename, int line, LogLevel level):
+Logger::Logger(const std::string &basename, int line, LogLevel level):
     impl_(basename, line, level)
 {
 
@@ -44,7 +47,7 @@ Logger::~Logger()
 
 }
 
-Logger::Impl::Impl(const std::string basename, int line, LogLevel level):
+Logger::Impl::Impl(const std::string &basename, int line, LogLevel level):
     stream_(), basename_(basename), line_(line), level_(level)
 {
     stream_ << get_time_str() <<  " " << gettid() << " " << LevelStr[level] << " ";
