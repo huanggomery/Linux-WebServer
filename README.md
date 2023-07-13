@@ -34,7 +34,9 @@ sudo ./HttpServer [-p port] [-t thread_numbers]
 
 ## 浏览器测试
 
-使用浏览器，地址输入http://127.0.0.1，即可得到如下页面
+使用浏览器，地址输入http://127.0.0.1
+
+即可得到如下页面
 
 <img src="./image/WebServerTest.png" style="zoom:80%;" />	
 
