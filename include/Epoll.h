@@ -4,6 +4,7 @@
 #include <sys/epoll.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <netinet/tcp.h>
 #include <errno.h>
 #include <unistd.h>
 #include <memory>
@@ -98,7 +99,7 @@ shared_ptr<Epoll<T>> Epoll<T>::CreateEpoll(shared_ptr<ThreadPool<T>> tp, int por
     // 把listenfd注册到epoll
     if (!sp->epoll_add(sp->listenfd_, EPOLLIN | EPOLLET, nullptr))
     {
-        std::cerr << "epoll_add failed" << std::endl;
+        std::cerr << "epoll_add listenfd failed" << std::endl;
         return nullptr;
     }
 
@@ -108,8 +109,17 @@ shared_ptr<Epoll<T>> Epoll<T>::CreateEpoll(shared_ptr<ThreadPool<T>> tp, int por
         std::cerr << "socketpair failed" << std::endl;
         return nullptr;
     }
-    SetSocketNoBlocking(pipefd[1]);
-    sp->epoll_add(pipefd[0], EPOLLIN | EPOLLET, nullptr);
+    if (!SetSocketNoBlocking(pipefd[1]))
+    {
+        std::cerr << "Set no blocking failed" << std::endl;
+        return nullptr;
+    }
+    
+    if (!sp->epoll_add(pipefd[0], EPOLLIN | EPOLLET, nullptr))
+    {
+        std::cerr << "epoll_add pipefd[0] failed" << std::endl;
+        return nullptr;
+    }
     
     bool ret = true;
     ret = ret && addsig(SIGINT);
@@ -132,9 +142,13 @@ bool Epoll<T>::epoll_add(int fd, int ev, SP_Task task)
     memset(&event, 0, sizeof(event));
     event.data.fd = fd;
     event.events = ev;
-    if (epoll_ctl(epfd_, EPOLL_CTL_ADD, fd, &event) != 0)
-        return false;
     fd2Task[fd] = task;
+    if (epoll_ctl(epfd_, EPOLL_CTL_ADD, fd, &event) != 0)
+    {
+        // std::cout << "epoll_add失败,fd=" << fd << std::endl;
+        fd2Task[fd].reset();
+        return false;
+    }
     return true;
 }
 
@@ -145,21 +159,22 @@ bool Epoll<T>::epoll_mod(int fd, int ev, SP_Task task)
     memset(&event, 0, sizeof(event));
     event.data.fd = fd;
     event.events = ev;
+    // fd2Task[fd] = task;
     if( epoll_ctl(epfd_, EPOLL_CTL_MOD, fd, &event) != 0)
     {
+        // std::cout << "epoll_mod失败,fd=" << fd << std::endl;
         fd2Task[fd].reset();
         return false;
     }
-    fd2Task[fd] = task;
     return true;
 }
 
 template <typename T>
 bool Epoll<T>::epoll_del(int fd)
 {
+    fd2Task[fd].reset();
     if (epoll_ctl(epfd_, EPOLL_CTL_DEL, fd, nullptr) != 0)
         return false;
-    fd2Task[fd].reset();
     return true;
 }
 
@@ -199,7 +214,12 @@ vector<shared_ptr<T>> Epoll<T>::getEventsRequest(int num)
         else if ((fd == pipefd[0]) &&  (ev & EPOLLIN))
             handleSignal();
         else if ((ev & EPOLLIN) || (ev & EPOLLOUT))
+        {
+            if (!fd2Task[fd])
+                LOG_FATAL << "fatal nullptr fd = " << fd;
+            
             requests.push_back(fd2Task[fd]);
+        }
         else {/* something else */}
     }
     return requests;
@@ -215,32 +235,40 @@ void Epoll<T>::acceptConnection()
     int connfd;
     while ((connfd = accept(listenfd_, (sockaddr *)&addr, &addr_len)) != -1)
     {
-        LOG_INFO << "accept new connection, socket: " << connfd << " ip: " << inet_ntoa(addr.sin_addr);
+        LOG_INFO << "accept new connection, socket: " << connfd << " ip: " << dotted_decimal_notation(addr) << ":" << src_port(addr) ;
+
+        // 禁用Nagle算法
+        int nagle_flag = 1;
+        if (setsockopt(connfd, IPPROTO_TCP, TCP_NODELAY, &nagle_flag, sizeof(int)) == -1)
+        {
+            close(connfd);
+            LOG_ERROR << "Turn off nagle failed, close the socket " << connfd << " errno=" << errno;
+            continue;
+        }
+
         if (connfd >= MAXFD)
         {
             close(connfd);
-            LOG_ERROR << "connfd >= MAXFD, close the socket";
+            LOG_ERROR << "connfd >= MAXFD, close the socket " << connfd;
             continue;
         }
         if (!SetSocketNoBlocking(connfd))
         {
             close(connfd);
             // std::cerr << "Set no blocking failed" << std::endl;
-            LOG_ERROR << "Set no blocking failed, close the socket";
+            LOG_ERROR << "Set no blocking failed, close the socket " << connfd << "  errno=" << errno;;
             return;
         }
 
         SP_Task new_task(new T(connfd, addr));
         if (!epoll_add(connfd, EPOLLIN | EPOLLET | EPOLLONESHOT, new_task))
         {
-            close(connfd);
             // std::cerr << "epoll_add failed" << std::endl;
-            LOG_ERROR <<"epoll_add failed";
+            LOG_ERROR <<"epoll_add connfd " << connfd << " failed";
             return;
         }
         if (!timer_manager_->addTimer(new_task, timeout_))
         {
-            close(connfd);
             epoll_del(connfd);
             // std::cerr << "Add timer failed" << std::endl;
             LOG_ERROR << "Add timer failed";

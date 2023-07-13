@@ -8,7 +8,7 @@
 
 
 // 持续连接的定时器是30s，非持续连接是2s
-const int LONG_TIMEOUT = 30 * 1000;
+const int LONG_TIMEOUT = 5 * 1000;
 const int SHORT_TIMEOUT = 2 * 1000;
 
 const int PARSE_REQUESTLINE_FINISH = 0;
@@ -63,10 +63,9 @@ string MimeType::getMime(const string &suffix)
 shared_ptr<TimerManager<HttpTask>> HttpTask::timer_manager_(nullptr);
 shared_ptr<Epoll<HttpTask>> HttpTask::epoll_(nullptr);
 
-HttpTask::~HttpTask() 
+HttpTask::~HttpTask()
 {
-    LOG_INFO << "disconnect with " << dotted_decimal_notation(addr_);
-    close(sock_);
+    LOG_WARN << "disconnect with " << dotted_decimal_notation(addr_) << ":" << src_port(addr_) << ", close the socket " << sock_;
 }
 
 void HttpTask::Init(SP_TimerManager tm, SP_Epoll ep)
@@ -113,14 +112,14 @@ void HttpTask::process()
         if (ret == WRITE_FINISH)
         {
             main_status_ = STATE_FINISH;
-            LOG_INFO << "Send message to " << dotted_decimal_notation(addr_) << " successful";
+            LOG_INFO << "Send message to " << dotted_decimal_notation(addr_) << ":" << src_port(addr_)  << " successful, socket = " << sock_;
         }
         else if (ret == WRITE_AGAIN)
             main_status_ = STATE_READY_TO_WRITE;
         else
         {
             main_status_ = STATE_ERROR;
-            LOG_ERROR << "Send message to " << dotted_decimal_notation(addr_) << " failed";
+            LOG_ERROR << "Send message to " << dotted_decimal_notation(addr_) << ":" << src_port(addr_)  << " failed, socket = " << sock_;
         }
     }
 
@@ -135,7 +134,7 @@ void HttpTask::process()
             int read_len = _read();
             if (read_len < 0)
             {
-                LOG_ERROR << "Bad Request from " << dotted_decimal_notation(addr_);
+                LOG_ERROR << "Bad Request from " << dotted_decimal_notation(addr_) << ":" << src_port(addr_) ;
                 _handleError(400, "Bad Request");
                 break;
             }
@@ -144,7 +143,7 @@ void HttpTask::process()
             // 最可能是对端已经关闭了，统一按照对端已经关闭处理
             else if (read_len == 0)
             {
-                LOG_INFO << "Receive zero byte message from " << dotted_decimal_notation(addr_);
+                LOG_INFO << "Receive zero byte message from " << dotted_decimal_notation(addr_) << ":" << src_port(addr_) ;
                 main_status_ = STATE_ERROR;
                 break;
             }
@@ -204,9 +203,9 @@ void HttpTask::process()
                 {
                     main_status_ = STATE_READY_TO_WRITE;
                     if (method_ == METHOD_GET)
-                        LOG_INFO << "Receive GET request successful";
+                        LOG_INFO << "Receive GET request successful, socket = " << sock_;
                     else if (method_ == METHOD_POST)
-                        LOG_INFO << "Receive POST request successful";
+                        LOG_INFO << "Receive POST request successful, socket = " << sock_;
                 }
                 else if (ret == ANALYSIS_NOT_FOUND)
                 {
@@ -302,14 +301,17 @@ void HttpTask::_handleError(int err_num, const string &msg)
     outBuf_ += head + entity_body;
     main_status_ = STATE_READY_TO_WRITE;
 
-    LOG_INFO << "HTTP error " << std::to_string(err_num) << " " << msg << " from: " << dotted_decimal_notation(addr_);
+    LOG_INFO << "HTTP error " << std::to_string(err_num) << " " << msg << " from: " << dotted_decimal_notation(addr_) << ":" << src_port(addr_) ;
 }
 
 // 根据主状态机进行最后处理，即维护定时器和epoll监听事件
 void HttpTask::_handleConnection()
 {
     if (main_status_ == STATE_READY_TO_WRITE)
-        epoll_->epoll_mod(sock_, EPOLLOUT | EPOLLET | EPOLLONESHOT, shared_from_this());
+    {
+        if (!epoll_->epoll_mod(sock_, EPOLLOUT | EPOLLET | EPOLLONESHOT, shared_from_this()))
+            LOG_ERROR << "epoll_mod failed, fd = " << sock_;
+    }
     else if (main_status_ == STATE_ERROR)
         _disconnect();
     else if (main_status_ == STATE_FINISH)
@@ -318,7 +320,8 @@ void HttpTask::_handleConnection()
         {
             _reset();
             timer_manager_->addTimer(shared_from_this(), LONG_TIMEOUT);
-            epoll_->epoll_mod(sock_, EPOLLIN | EPOLLET | EPOLLONESHOT, shared_from_this());
+            if (!epoll_->epoll_mod(sock_, EPOLLIN | EPOLLET | EPOLLONESHOT, shared_from_this()))
+                LOG_ERROR << "epoll_mod failed, fd = " << sock_;
         }
         else
             _disconnect();
@@ -327,7 +330,8 @@ void HttpTask::_handleConnection()
     {
         int timeout = keep_alive_ ? LONG_TIMEOUT : SHORT_TIMEOUT;
         timer_manager_->addTimer(shared_from_this(), timeout);
-        epoll_->epoll_mod(sock_, EPOLLIN | EPOLLET | EPOLLONESHOT, shared_from_this());
+        if (!epoll_->epoll_mod(sock_, EPOLLIN | EPOLLET | EPOLLONESHOT, shared_from_this()))
+            LOG_ERROR << "epoll_mod failed, fd = " << sock_;
     }
 }
 

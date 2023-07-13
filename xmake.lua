@@ -7,6 +7,15 @@ target("HttpServer")
     add_includedirs("include")
     set_languages("c++11")
     add_syslinks("pthread")
+    set_optimize("faster")
+
+target("test")
+    set_kind("binary")
+    add_files("test.cpp")
+    add_includedirs("include")
+    set_languages("c++11")
+    add_syslinks("pthread")
+    set_optimize("none")
 
 --
 -- If you want to known more usage about xmake, please see https://xmake.io
