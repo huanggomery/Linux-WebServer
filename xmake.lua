@@ -3,19 +3,10 @@ add_rules("mode.debug", "mode.release")
 target("HttpServer")
     set_kind("binary")
     add_files("src/*.cpp")
-    -- add_files("test.cpp")
     add_includedirs("include")
     set_languages("c++11")
     add_syslinks("pthread")
     set_optimize("faster")
-
-target("test")
-    set_kind("binary")
-    add_files("test.cpp")
-    add_includedirs("include")
-    set_languages("c++11")
-    add_syslinks("pthread")
-    set_optimize("none")
 
 --
 -- If you want to known more usage about xmake, please see https://xmake.io
