@@ -1,6 +1,7 @@
 #include "AsyncLogging.h"
 #include "Utils.h"
 #include <algorithm>
+#include <stdexcept>
 
 namespace {
     void *threadFunction(void *arg)
